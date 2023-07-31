@@ -1,0 +1,36 @@
+# Lesson 9: Hardhat lottery
+## Content
+- [ ] Introduction
+- [ ] Hardhat Setup - Smart Contract Lottery
+- [ ] Raffle.sol Setup
+- [ ] Introduction to Events
+- [ ] Events in Raffle.sol
+- [ ] Introduction to Chainlink VRF
+    - [ ] Sub-Lesson: Chainlink VRF
+- [ ] Implementing Chainlink VRF - Introduction
+    - [ ] Hardhat Shorthand
+- [ ] Implementing Chainlink VRF - The Request
+- [ ] Implementing Chainlink VRF - The FulFill
+    - [ ] Modulo
+- [ ] Introduction to Chainlink Keepers
+- [ ] Implementing Chainlink Keepers - checkUpkeep
+    - [ ] Enums
+- [ ] Implementing Chainlink Keepers - checkUpkeep continued
+- [ ] Implementing Chainlink Keepers - performUpkeep
+- [ ] Code Cleanup
+- [ ] Deploying Raffle.sol
+    - [ ] Mock Chainlink VRF Coordinator
+    - [ ] Continued
+- [ ] Raffle.sol Unit Tests
+    - [ ] Testing Events & Chai Matchers
+    - [ ] Continued I
+- [ ] Hardhat Methods & Time Travel
+    - [ ] Continued II
+- [ ] Callstatic
+    - [ ] Continued III
+    - [ ] Massive Promise Test
+    - [ ] Continued IV
+- [ ] Raffle.sol Staging Tests
+- [ ] Testing on a Testnet
+    - [ ] Recommended LINK amounts for Sepolia Staging Test:
+- [ ] Conclusion
