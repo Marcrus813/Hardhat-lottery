@@ -109,7 +109,7 @@ contract Raffle is VRFConsumerBaseV2, AutomationCompatibleInterface {
 	 * @return
 	 */
 	function checkUpkeep(
-		bytes calldata /* checkData */
+		bytes memory /* checkData */
 	)
 		public
 		override

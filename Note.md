@@ -79,3 +79,7 @@ See [Doc](https://docs.chain.link/vrf/v2/subscription/examples/get-a-random-numb
 
 - Enums
     - Custom types with a finite set of `constant values`
+
+- **Problem notes**
+    - `Raffle.sol:144`, when `checkUpkeep("");`, it gives `Invalid type for argument in function call. Invalid implicit conversion from literal_string "" to bytes calldata requested.solidity(9553)`
+        - In `checkUpkeep` use `function checkUpkeep(bytes memory /* checkData */)`
