@@ -4,9 +4,9 @@
 
 ## Good practice
 
-- Do a "What-how" before hand, to help both developing and testing
-- Test-oriented coding
-	- Write test first, code along
+-   Do a "What-how" before hand, to help both developing and testing
+-   Test-oriented coding
+    -   Write test first, code along
 
 ---
 
@@ -38,15 +38,44 @@
     > 	msg.sender
     > );
     > ```
-- Structure of a log
-	- Address of the contract
-	- Name of the event
-	- Topics
-	- Data
-		- Non-indexed
+-   Structure of a log
+    -   Address of the contract
+    -   Name of the event
+    -   Topics
+    -   Data
+        -   Non-indexed
 
-***
+---
 
 ## Chainlink VRF
 
+### The request
+
 See [Doc](https://docs.chain.link/vrf/v2/subscription/examples/get-a-random-number)
+
+-   `keyHash` a.k.a `gasLane`
+    -   Gas lane key hash: Maximum gas price willing to pay for a request in wei
+-   `subscriptionId`
+    -   Chainlink subscription id
+-   `requestConfirmations`
+    -   How many confirmations Chainlink should wait before responding
+-   `callbackGasLimit`
+    -   Limit for how much gas for callback request to `fulfillRandomWords`, sets a limit for how much computation `fulfillRandomWords` can be, protect from expensive gas
+-   `numWords`
+    -   How many random num we want
+
+### The fulfill
+
+-   Modulo
+
+---
+
+## Chainlink keepers
+
+-   The contract has to be compatible to
+    -   `checkUpkeep`: Checks if the contract requires work to be done
+        -   Can also call other functions for having a param of `bytes`(Other advanced functions of `bytes`)
+    -   `performUpkeep`: Perform the work, if instructed by `checkUpkeep()`
+
+- Enums
+    - Custom types with a finite set of `constant values`
