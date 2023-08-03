@@ -82,4 +82,15 @@ See [Doc](https://docs.chain.link/vrf/v2/subscription/examples/get-a-random-numb
 
 - **Problem notes**
     - `Raffle.sol:144`, when `checkUpkeep("");`, it gives `Invalid type for argument in function call. Invalid implicit conversion from literal_string "" to bytes calldata requested.solidity(9553)`
-        - In `checkUpkeep` use `function checkUpkeep(bytes memory /* checkData */)`
+        - In `checkUpkeep` use *memory* instead of *calldata*: `function checkUpkeep(bytes memory /* checkData */`
+            - `calldata` can only be called from external, hence the function has to be `external`
+
+***
+
+## Deploying
+
+Basically the same as before, `hardhat.config.js`, `helper-hardhat.config.js`, deploy scripts for mocks and contracts, [mock contract](https://github.com/smartcontractkit/chainlink/blob/develop/contracts/src/v0.8/mocks/VRFCoordinatorV2Mock.sol)
+
+- **Problem notes**
+    - `subscriptionId = txnReceipt.events[0].args.subId;`
+        - Also problem with version, there's no `events` in txnReceipt, there is `logs`

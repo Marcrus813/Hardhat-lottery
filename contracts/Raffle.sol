@@ -20,8 +20,18 @@ import "@chainlink/contracts/src/v0.8/AutomationCompatible.sol";
 error Raffle__NotEnoughETH();
 error Raffle__NotOpen();
 error Raffle__TransferFailed();
-error Raffle__UpkeepNotNeeded(uint256 currentBalance, uint256 playerCount, uint256 raffleState);
+error Raffle__UpkeepNotNeeded(
+	uint256 currentBalance,
+	uint256 playerCount,
+	uint256 raffleState
+);
 
+/**
+ * @title A sample raffle contract
+ * @author V
+ * @notice This contract is for creating an verifiable random decentralized smart contract
+ * @dev This implements Chainlink VRF v2 and Chainlink keepers
+ */
 contract Raffle is VRFConsumerBaseV2, AutomationCompatibleInterface {
 	/** Types */
 	enum RaffleState {
@@ -56,7 +66,7 @@ contract Raffle is VRFConsumerBaseV2, AutomationCompatibleInterface {
 	 * @dev `VRFConsumerBaseV2` is the constructor for parent contract(class), also called main constructor
 	 */
 	constructor(
-		address vrfCoordinatorV2,
+		address vrfCoordinatorV2, // Contract address -> Could use mocks
 		uint256 entranceFee,
 		bytes32 gasLane,
 		uint64 subscriptionId,
@@ -143,7 +153,11 @@ contract Raffle is VRFConsumerBaseV2, AutomationCompatibleInterface {
 	function performUpkeep(bytes calldata /* performData */) external override {
 		(bool upkeepNeeded, ) = checkUpkeep("");
 		if (!upkeepNeeded) {
-			revert Raffle__UpkeepNotNeeded(address(this).balance, s_players.length, uint256(s_raffleState));
+			revert Raffle__UpkeepNotNeeded(
+				address(this).balance,
+				s_players.length,
+				uint256(s_raffleState)
+			);
 		}
 		/**
 		 * What to do:
@@ -187,6 +201,7 @@ contract Raffle is VRFConsumerBaseV2, AutomationCompatibleInterface {
 		s_raffleState = RaffleState.OPEN; // Release lock
 
 		s_players = new address payable[](0); // Reset
+		s_lastTimeStamp = block.timestamp;
 
 		// Send the money
 		(bool success, ) = recentWinner.call{value: address(this).balance}("");
@@ -210,5 +225,30 @@ contract Raffle is VRFConsumerBaseV2, AutomationCompatibleInterface {
 
 	function getRecentWinner() public view returns (address) {
 		return s_recentWinner;
+	}
+
+	function getRaffleState() public view returns (RaffleState) {
+		return s_raffleState;
+	}
+
+	/**
+	 * @dev Why can this be restricted to pure?
+	 * `NUM_WORDS` is a constant variable, so technically, this is not reading from `storage`
+	 */
+	function getNumWords() public pure returns (uint256) {
+		return NUM_WORDS;
+		// return 1; // Basically the same
+	}
+
+	function getNumberOfPlayers() public view returns (uint256) {
+		return s_players.length;
+	}
+
+	function getLatestTimestamp() public view returns (uint256) {
+		return s_lastTimeStamp;
+	}
+
+	function getRequestConfirmations() public pure returns (uint256) {
+		return REQUEST_CONFIRMATIONS;
 	}
 }
