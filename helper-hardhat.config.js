@@ -4,8 +4,9 @@ const networkConfig = {
 	31337: {
 		name: "hardhat",
 		entranceFee: ethers.parseEther("0.1"),
-		gasLane: "", // Mocks anyway
-		callbackGasLimit: "500,000",
+		gasLane:
+			"0x0000000000000000000000000000000000000000000000000000000000000000", // Mocks anyway
+		callbackGasLimit: "500000",
 		interval: "30",
 	},
 	11155111 /** Sepolia chainId */: {
@@ -16,7 +17,7 @@ const networkConfig = {
 		gasLane:
 			"0x474e34a077df58807dbe9c96d3c009b23b3c6d0cce433e59bbf5b34f823bc56c",
 		subscriptionId: "2999",
-		callbackGasLimit: "500,000",
+		callbackGasLimit: "500000",
 		interval: "30",
 	},
 	137 /** Polygon chainId */: {
@@ -27,7 +28,7 @@ const networkConfig = {
 		gasLane:
 			"0xd729dc84e21ae57ffb6be0053bf2b0668aa2aaf300a2a7b2ddf7dc0bb6e875a8",
 		subscriptionId: "2999",
-		callbackGasLimit: "500,00",
+		callbackGasLimit: "50000",
 	},
 };
 

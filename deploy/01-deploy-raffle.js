@@ -10,14 +10,14 @@ module.exports = async (hre) => {
 	const chainId = network.config.chainId;
 
 	let address_vrfCoordinatorV2, subscriptionId;
-    let vrfCoordinatorV2Mock;
+	let vrfCoordinatorV2Mock;
 
 	if (devChains.includes(network.name)) {
-		address_vrfCoordinatorV2 = (await deployments.get(
-			"VRFCoordinatorV2Mock",
-		)).address;
+		address_vrfCoordinatorV2 = (
+			await deployments.get("VRFCoordinatorV2Mock")
+		).address;
 
-        vrfCoordinatorV2Mock = await ethers.getContractAt(
+		vrfCoordinatorV2Mock = await ethers.getContractAt(
 			"VRFCoordinatorV2Mock",
 			address_vrfCoordinatorV2,
 		);
@@ -25,8 +25,7 @@ module.exports = async (hre) => {
 		// Create subscription programmatically
 		const txnResponse = await vrfCoordinatorV2Mock.createSubscription();
 		const txnReceipt = await txnResponse.wait(1); // An event emitted with a subscription we can get
-		// FIXME:
-		subscriptionId = txnReceipt.logs[0].args.subId;
+		subscriptionId = txnReceipt.logs[0].topics[1];
 
 		// Fund subscription
 		await vrfCoordinatorV2Mock.fundSubscription(
@@ -69,6 +68,10 @@ module.exports = async (hre) => {
 		waitConfirmations: network.config.blockConfirmations,
 	};
 	const raffle = await deploy("Raffle", deployOptions_raffle);
+
+	if (devChains.includes(network.name)) {
+		await vrfCoordinatorV2Mock.addConsumer(subscriptionId, raffle.address);
+	}
 
 	if (!devChains.includes(network.name) && process.env.ETHERSCAN_API_KEY) {
 		await verify(raffle.address, raffleArgs);
