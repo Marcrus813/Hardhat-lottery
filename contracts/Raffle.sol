@@ -37,7 +37,7 @@ contract Raffle is VRFConsumerBaseV2, AutomationCompatibleInterface {
 	enum RaffleState {
 		OPEN,
 		CALCULATING
-	}
+	} // Even it's of type `RaffleState`, it returns 0(`OPEN`), 1(`CALCULATING`), etc
 
 	/** State variables */
 	uint256 private immutable i_entranceFee;
@@ -178,6 +178,7 @@ contract Raffle is VRFConsumerBaseV2, AutomationCompatibleInterface {
 			NUM_WORDS
 		);
 
+		// This is actually redundant for the Mock contract itself emits an event
 		emit RequestedRaffleWinner(requestId);
 	}
 
@@ -219,7 +220,11 @@ contract Raffle is VRFConsumerBaseV2, AutomationCompatibleInterface {
 		return i_entranceFee;
 	}
 
-	function getPlayers(uint256 index) public view returns (address) {
+	function getInterval() public view returns (uint256) {
+		return i_interval;
+	}
+
+	function getPlayer(uint256 index) public view returns (address) {
 		return s_players[index];
 	}
 

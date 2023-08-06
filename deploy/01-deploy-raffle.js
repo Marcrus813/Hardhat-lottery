@@ -1,9 +1,9 @@
-const { network, ethers } = require("hardhat");
+const { network, ethers, deployments } = require("hardhat");
 const { devChains, networkConfig } = require("../helper-hardhat.config");
 const { verify } = require("../utils/verify");
 
 module.exports = async (hre) => {
-	const { getNamedAccounts, deployments } = hre;
+	const { getNamedAccounts } = hre;
 	const { deploy, log } = deployments;
 	const { deployer } = await getNamedAccounts();
 
@@ -25,7 +25,21 @@ module.exports = async (hre) => {
 		// Create subscription programmatically
 		const txnResponse = await vrfCoordinatorV2Mock.createSubscription();
 		const txnReceipt = await txnResponse.wait(1); // An event emitted with a subscription we can get
-		subscriptionId = txnReceipt.logs[0].topics[1];
+		const deployment_vrfCoordinatorV2 = await deployments.get(
+			"VRFCoordinatorV2Mock",
+		);
+		const interface_vrfCoordinatorV2 = new ethers.Interface(
+			deployment_vrfCoordinatorV2.abi,
+		);
+		const parsedLogs_vrfCoordinatorV2 = (txnReceipt?.logs || []).map(
+			(log) => {
+				return interface_vrfCoordinatorV2.parseLog({
+					topics: [...log?.topics] || [],
+					data: log?.data || "",
+				});
+			},
+		);
+		subscriptionId = parsedLogs_vrfCoordinatorV2[0]?.args[0] || BigInt(0);
 
 		// Fund subscription
 		await vrfCoordinatorV2Mock.fundSubscription(
@@ -82,4 +96,4 @@ module.exports = async (hre) => {
 	console.log("********************************************");
 };
 
-module.exports.tags = ["all", "raffle"];
+module.exports.tags = ["all", "Raffle"];

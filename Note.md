@@ -98,4 +98,48 @@ Basically the same as before, `hardhat.config.js`, `helper-hardhat.config.js`, d
         -   Also problem with version, there's no `events` in txnReceipt, there is `logs`
         -   What's still unclear:
             -   New code `subscriptionId = txnReceipt.logs[0].topics[1];`, but in contract `VRFCoordinatorV2Mock`, event `SubscriptionCreated` has event params(topics) of `(uint64 indexed subId, address owner);`, but when debugging, `topics[0]` appears to be an address, while `topics[1]` is `0x000...1` and seems to be `subId`, why is this? There's only one `indexed`, then why is it indexed as `0` and `1`?
-                The code now deploys successfully, unsure if works correctly
+                -   The code now deploys successfully, unsure if works correctly
+
+---
+
+## Tests
+
+### Unit test
+
+-   Testing events
+    -   [Documentation: Emit Chai Matcher](https://ethereum-waffle.readthedocs.io/en/latest/matchers.html#emitting-events)
+-   Hardhat Methods & "Time Travel"
+    -   When testing `performUpkeep`, we need to fire `checkUpkeep`, i.e., we need to pretend to be the Chainlink keeper to fire the event upon certain condition, but not necessarily wait that amount of time, this is where "Time travel" comes in, using hardhat, we can make hardhat network perform the way we want, see [Documentation](https://hardhat.org/hardhat-network/reference), what we need here in particular is `evm_increaseTime(): As the name suggests`, `evm_mine(): Mine and create new block`
+    -   **Problem notes**
+        -   `TypeError: interval.toNumber is not a function`
+            -   Ethers.js V6, use `Number(interval)` instead of `toNumber`
+-   staticCall
+
+    -   Migrated from `contractName.callStatic.FunctionName()` in V5 to `contractName.FunctionName.staticCall(/*params*/)`
+    -   When dealing with `checkUpkeep`, as it's public, if we call it in test, it will be an txn, if it has `view`, then it will return `view`, but in testing, we don't really need to txn, thus use `staticCall` to simulate calling and seeing the result
+
+-   **More on logs, events and topics**
+    -   To determine index of `logs[]`, need to go through contracts, see which event is emitted first
+    -   To really get the event params, need to use parsing, [example code](https://github.com/satishnvrn/hardhat-lottery-smartcontract-sat/blob/main/deploy/01-deploy-raffle.ts)
+    -   [Explanation](https://medium.com/@kaishinaw/ethereum-logs-hands-on-with-ethers-js-a28dde44cbb6)
+        -   To answer the problem above, in `topics`, `topics[0]` is the hash of the event: `Event(address, uint256)`, therefore, the get the actual data, we need to decode the raw log data with contract abi(Events are stored as hashes on the blockchain in order to reduce storage requirements)
+        -   `Raffle.test.js: 242`, code needs explanation
+            -   Output of log(`Raffle.sol` emitting `RequestedRaffleWinner`)
+                ```json
+                [
+                    null,
+                    LogDescription {
+                        fragment: EventFragment {
+                        type: 'event',
+                        inputs: [Array],
+                        name: 'RequestedRaffleWinner',
+                        anonymous: false
+                        },
+                        name: 'RequestedRaffleWinner',
+                        signature: 'RequestedRaffleWinner(uint256)',
+                        topic: '0xcd6e45c8998311cab7e9d4385596cac867e20a0587194b954fa3a731c93ce78b',
+                        args: Result(1) [ 1n ]
+                    }
+                ]
+                ```
+                Index 0 should be emitted by `VRFCoordinatorV2Mock`, event: `RandomWordsRequested`, why is it null though?
