@@ -50,7 +50,8 @@ module.exports = {
 			default: 0,
 			31337: 0,
 		},
-		player: { // Separate from deployer
+		player: {
+			// Separate from deployer
 			default: 1,
 		},
 	},
@@ -63,6 +64,6 @@ module.exports = {
 		token: "ETH",
 	},
 	mocha: {
-		timeout: 300000,
+		timeout: 300000, // 300 seconds max
 	},
 };

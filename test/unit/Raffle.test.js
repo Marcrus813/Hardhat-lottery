@@ -9,6 +9,7 @@ const { devChains, networkConfig } = require("../../helper-hardhat.config");
 			let contract_raffle, contract_vrfCoordinatorV2Mock;
 			let entranceFee;
 			let interval;
+			let address_raffle;
 
 			let deployer;
 
@@ -17,7 +18,7 @@ const { devChains, networkConfig } = require("../../helper-hardhat.config");
 
 				const deploymentResults = await deployments.fixture(["all"]);
 
-				const address_raffle = deploymentResults["Raffle"]?.address;
+				address_raffle = deploymentResults["Raffle"]?.address;
 				contract_raffle = await ethers.getContractAt(
 					"Raffle",
 					address_raffle,
@@ -46,7 +47,7 @@ const { devChains, networkConfig } = require("../../helper-hardhat.config");
 				});
 			});
 
-			describe("Function: `enterRaffle():`", () => {
+			describe("Function: `enterRaffle()`:", () => {
 				it("Reverts if not enough tokens payed.", async () => {
 					await expect(
 						contract_raffle.enterRaffle(),
@@ -96,7 +97,7 @@ const { devChains, networkConfig } = require("../../helper-hardhat.config");
 				});
 			});
 
-			describe("Function: `checkUpkeep():`", () => {
+			describe("Function: `checkUpkeep()`:", () => {
 				// Test every portion, make other portions true
 				it("Returns false if the contract state is not `OPEN`", async () => {
 					// Player entered and pool has reward
@@ -163,7 +164,7 @@ const { devChains, networkConfig } = require("../../helper-hardhat.config");
 				});
 			});
 
-			describe("Function `performUpkeep():`", () => {
+			describe("Function `performUpkeep()`:", () => {
 				it("Only runs when `checkUpkeep()` returns `true`.", async () => {
 					// Player and pool
 					await contract_raffle.enterRaffle({ value: entranceFee });
@@ -240,19 +241,134 @@ const { devChains, networkConfig } = require("../../helper-hardhat.config");
 					 *
 					 */
 					const parsedLogs_raffle = (txnReceipt?.logs || []).map(
+						// `txnReceipt.logs` is the source array if `txnReceipt` is not null
 						(log) => {
+							// Each `log` object in source array
 							return interface_raffle.parseLog({
+								/**Spread syntax
+								 * `[...log?.topics]`: creates a new array by copying all the elements from
+								 * the `log?.topics` array into it
+								 */
 								topics: [...log?.topics] || [],
 								data: log?.data || "",
 							});
 						},
 					);
-
-                    console.log(parsedLogs_raffle);
 					// Get the param from `parsedLogs`
 					const requestId =
 						parsedLogs_raffle[1]?.args[0] || BigInt(0);
-					
+					assert(Number(requestId) > 0);
+				});
+			});
+
+			describe("Function `fulfillRandomWords()`:", () => {
+				// For this section, before we test, we defo need players in pool, so add `beforeEach`
+				beforeEach(async () => {
+					await contract_raffle.enterRaffle({ value: entranceFee });
+					await network.provider.send("evm_increaseTime", [
+						Number(interval) + 10,
+					]);
+					await network.provider.send("evm_mine", []);
+				});
+
+				it("Can only be called after `performUpkeep`.", async () => {
+					/** If called directly without a valid `requestId`(which can only be from a valid `performUpkeep` call)
+					 	Expect to be reverted by Mock contract, see code, we need `subId` and `consumerAddress`
+					 	Hard coded `requestId` for now*/
+					await expect(
+						contract_vrfCoordinatorV2Mock.fulfillRandomWords(
+							0,
+							address_raffle,
+						),
+					).to.be.revertedWith("nonexistent request"); // The revert msg defined in Mock contract
+					await expect(
+						contract_vrfCoordinatorV2Mock.fulfillRandomWords(
+							1,
+							address_raffle,
+						),
+					).to.be.revertedWith("nonexistent request");
+				});
+			});
+
+			/**Massive Promise test
+			 * The way this test is organized can be applied to staging test
+			 *
+			 * In this part, we will confirm:
+			 * 		Contract picks a winner, resets and sends money
+			 * What we will need in addition:
+			 * 		More than one player in pool
+			 */
+			describe("The contract performs correctly", () => {
+				beforeEach(async () => {
+					const accounts = await ethers.getSigners();
+					const additionalPlayersNum = 3;
+					const playerAccountIndex = 1; // Deployer is 0
+					for (
+						let i = playerAccountIndex;
+						i < playerAccountIndex + additionalPlayersNum;
+						i++
+					) {
+						const accountConnected_raffle =
+							await contract_raffle.connect(accounts[i]);
+						await accountConnected_raffle.enterRaffle({
+							value: entranceFee,
+						});
+					}
+				});
+
+				/**What we will do:
+				 * 		`performUpkeep`, (We mock being Chainlink keepers) ->
+				 * 		`fulfillRandomWords` kicked off(We mock being Chainlink VRF)
+				 * 		On test net:
+				 * 			Will have to wait for `fulfillRandomWords` to be called
+				 * 		On local chain:
+				 * 			Don't have to wait, but we need to simulate the waiting
+				 * 			Have to setup listener, and make sure the test does not finish until listener listened(Use promise)
+				 */
+				it("", async () => {
+					const startingTimeStamp =
+						await contract_raffle.getLatestTimestamp();
+
+					// This will seem a bit backward going, cuz we need to set up the listener first
+					await new Promise(async (resolve, reject) => {
+						// Need all codes inside this `Promise` block, but after the `once` block
+						// Reject timeout defined in `hardhat.config.js`, if reached timeout and not resolved, this test fails
+						contract_raffle.once(
+							"WinnerPicked" /**Listen for `WinnerPicked` event to be fired */,
+							() => {
+								// Once event picked, do this
+								try {
+								} catch (error) {
+									reject();
+								}
+								resolve();
+							},
+						);
+
+						const txnResponse_performUpkeep =
+							await contract_raffle.performUpkeep("0x");
+						const txnReceipt_performUpkeep =
+							await txnResponse_performUpkeep.wait(1);
+
+						// Get requestId
+						const deployment_raffle = await deployments.get(
+							"Raffle",
+						);
+						const interface_raffle = new ethers.Interface(
+							deployment_raffle.abi,
+						);
+						const parsedLogs_raffle = (
+							txnReceipt_performUpkeep?.logs || []
+						).map((log) => {
+							return interface_raffle.parseLog({
+								topics: [...log?.topics] || [],
+								data: log?.data || "",
+							});
+						});
+						const requestId =
+							parsedLogs_raffle[1]?.args[0] || BigInt(0);
+						await contract_vrfCoordinatorV2Mock.fulfillRandomWords(requestId, address_raffle);
+					});
 				});
 			});
 	  });
