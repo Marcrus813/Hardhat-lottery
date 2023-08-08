@@ -1,6 +1,7 @@
 const { network, ethers, deployments } = require("hardhat");
 const { devChains, networkConfig } = require("../helper-hardhat.config");
 const { verify } = require("../utils/verify");
+const {logParser} = require('../utils/logParser');
 
 module.exports = async (hre) => {
 	const { getNamedAccounts } = hre;
@@ -28,17 +29,12 @@ module.exports = async (hre) => {
 		const deployment_vrfCoordinatorV2 = await deployments.get(
 			"VRFCoordinatorV2Mock",
 		);
-		const interface_vrfCoordinatorV2 = new ethers.Interface(
-			deployment_vrfCoordinatorV2.abi,
+
+		const parsedLogs_vrfCoordinatorV2 = logParser(
+			deployment_vrfCoordinatorV2,
+			txnReceipt,
 		);
-		const parsedLogs_vrfCoordinatorV2 = (txnReceipt?.logs || []).map(
-			(log) => {
-				return interface_vrfCoordinatorV2.parseLog({
-					topics: [...log?.topics] || [],
-					data: log?.data || "",
-				});
-			},
-		);
+
 		subscriptionId = parsedLogs_vrfCoordinatorV2[0]?.args[0] || BigInt(0);
 
 		// Fund subscription

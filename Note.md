@@ -123,7 +123,7 @@ Basically the same as before, `hardhat.config.js`, `helper-hardhat.config.js`, d
     -   To really get the event params, need to use parsing, [example code](https://github.com/satishnvrn/hardhat-lottery-smartcontract-sat/blob/main/deploy/01-deploy-raffle.ts)
     -   [Explanation](https://medium.com/@kaishinaw/ethereum-logs-hands-on-with-ethers-js-a28dde44cbb6)
         -   To answer the problem above, in `topics`, `topics[0]` is the hash of the event: `Event(address, uint256)`, therefore, the get the actual data, we need to decode the raw log data with contract abi(Events are stored as hashes on the blockchain in order to reduce storage requirements)
-        -   `Raffle.test.js: 242`, code needs explanation
+        -   `Raffle.test.js: 242`, ~~code needs explanation,~~ see `../utils/logParser.js` for explanation
             -   Output of log(`Raffle.sol` emitting `RequestedRaffleWinner`)
                 ```json
                 [

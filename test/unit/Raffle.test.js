@@ -1,6 +1,7 @@
 const { assert, expect } = require("chai");
 const { deployments, ethers, getNamedAccounts, network } = require("hardhat");
 const { devChains, networkConfig } = require("../../helper-hardhat.config");
+const { logParser } = require("../../utils/logParser");
 
 !devChains.includes(network.name)
 	? describe.skip
@@ -234,27 +235,12 @@ const { devChains, networkConfig } = require("../../helper-hardhat.config");
 					 * We can get our own event, but we can also get from Mock contract
 					 */
 					const deployment_raffle = await deployments.get("Raffle"); // Get `Deployment` object of the contract
-					const interface_raffle = new ethers.Interface(
-						deployment_raffle.abi,
-					); // Get ABI from the `Deployment` object
-					/**Parse the log
-					 *
-					 */
-					const parsedLogs_raffle = (txnReceipt?.logs || []).map(
-						// `txnReceipt.logs` is the source array if `txnReceipt` is not null
-						(log) => {
-							// Each `log` object in source array
-							return interface_raffle.parseLog({
-								/**Spread syntax
-								 * `[...log?.topics]`: creates a new array by copying all the elements from
-								 * the `log?.topics` array into it
-								 */
-								topics: [...log?.topics] || [],
-								data: log?.data || "",
-							});
-						},
+
+					const parsedLogs_raffle = logParser(
+						deployment_raffle,
+						txnReceipt,
 					);
-					// Get the param from `parsedLogs`
+
 					const requestId =
 						parsedLogs_raffle[1]?.args[0] || BigInt(0);
 					assert(Number(requestId) > 0);
@@ -354,20 +340,18 @@ const { devChains, networkConfig } = require("../../helper-hardhat.config");
 						const deployment_raffle = await deployments.get(
 							"Raffle",
 						);
-						const interface_raffle = new ethers.Interface(
-							deployment_raffle.abi,
+
+						const parsedLogs_raffle = logParser(
+							deployment_raffle,
+							txnReceipt_performUpkeep,
 						);
-						const parsedLogs_raffle = (
-							txnReceipt_performUpkeep?.logs || []
-						).map((log) => {
-							return interface_raffle.parseLog({
-								topics: [...log?.topics] || [],
-								data: log?.data || "",
-							});
-						});
+
 						const requestId =
 							parsedLogs_raffle[1]?.args[0] || BigInt(0);
-						await contract_vrfCoordinatorV2Mock.fulfillRandomWords(requestId, address_raffle);
+						await contract_vrfCoordinatorV2Mock.fulfillRandomWords(
+							requestId,
+							address_raffle,
+						);
 					});
 				});
 			});
