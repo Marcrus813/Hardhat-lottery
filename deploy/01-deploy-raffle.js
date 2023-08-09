@@ -1,7 +1,7 @@
 const { network, ethers, deployments } = require("hardhat");
 const { devChains, networkConfig } = require("../helper-hardhat.config");
 const { verify } = require("../utils/verify");
-const {logParser} = require('../utils/logParser');
+const { logParser } = require("../utils/logParser");
 
 module.exports = async (hre) => {
 	const { getNamedAccounts } = hre;
@@ -90,6 +90,13 @@ module.exports = async (hre) => {
 	console.log("********************************************");
 	console.log("*           Deployment complete!           *");
 	console.log("********************************************");
+	console.log(
+		"*********************************************************",
+	);
+	console.log(`*Deployed at: ${raffle.address}*`);
+	console.log(
+		"*********************************************************",
+	);
 };
 
 module.exports.tags = ["all", "Raffle"];

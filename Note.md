@@ -119,6 +119,7 @@ Basically the same as before, `hardhat.config.js`, `helper-hardhat.config.js`, d
     -   When dealing with `checkUpkeep`, as it's public, if we call it in test, it will be an txn, if it has `view`, then it will return `view`, but in testing, we don't really need to txn, thus use `staticCall` to simulate calling and seeing the result
 
 -   **More on logs, events and topics**
+
     -   To determine index of `logs[]`, need to go through contracts, see which event is emitted first
     -   To really get the event params, need to use parsing, [example code](https://github.com/satishnvrn/hardhat-lottery-smartcontract-sat/blob/main/deploy/01-deploy-raffle.ts)
     -   [Explanation](https://medium.com/@kaishinaw/ethereum-logs-hands-on-with-ethers-js-a28dde44cbb6)
@@ -143,3 +144,10 @@ Basically the same as before, `hardhat.config.js`, `helper-hardhat.config.js`, d
                 ]
                 ```
                 Index 0 should be emitted by `VRFCoordinatorV2Mock`, event: `RandomWordsRequested`, why is it null though?
+
+-   Promising tests
+    -   **Problem notes**
+        -   When dealing with this, `const txnResponse_performUpkeep = await contract_raffle.performUpkeep("0x");` does not complete, changed to `contract_raffle_player.performUpkeep("0x");`(Where `contract_raffle_player` is a new instance of `contract_raffle` which is connected to a player), then it runs, and it seems all other tests are run on this `contract_raffle_player`. **_STILL NEED EXPLANATION_**
+            - Two have the same address(Naturally...)
+        -   Always the same address returned, WHY?
+            - We are using a Mock in our local environment, we expect the winner to always be the same because the mock doesn't generate randomness. However in a testnet or mainnet, you are guaranteed to get a random winner.

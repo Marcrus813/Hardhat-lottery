@@ -8,14 +8,21 @@ const { logParser } = require("../../utils/logParser");
 	: describe("Raffle", () => {
 			const chainId = network.config.chainId;
 			let contract_raffle, contract_vrfCoordinatorV2Mock;
+
+			let contract_raffle_player;
+
 			let entranceFee;
 			let interval;
 			let address_raffle;
 
+			let accounts;
 			let deployer;
+			let player;
 
 			beforeEach(async () => {
+				accounts = await ethers.getSigners();
 				deployer = (await getNamedAccounts()).deployer;
+				player = accounts[1];
 
 				const deploymentResults = await deployments.fixture(["all"]);
 
@@ -30,16 +37,17 @@ const { logParser } = require("../../utils/logParser");
 					"VRFCoordinatorV2Mock",
 					address_vrfCoordinatorV2,
 				);
-				await contract_raffle.connect(deployer);
-				await contract_vrfCoordinatorV2Mock.connect(deployer);
-				entranceFee = await contract_raffle.getEntranceFee();
-				interval = await contract_raffle.getInterval();
+				// contract_raffle.connect(deployer);
+				contract_raffle_player = contract_raffle.connect(player); // New instance of raffle that is connected to the player
+				entranceFee = await contract_raffle_player.getEntranceFee();
+				interval = await contract_raffle_player.getInterval();
 			});
 
 			describe("Constructor:", () => {
 				it("Initializes the raffle correctly", async () => {
 					// Ideally, one `assert` per `it`
-					const raffleState = await contract_raffle.getRaffleState(); // Gets a bigNumber
+					const raffleState =
+						await contract_raffle_player.getRaffleState(); // Gets a bigNumber
 					assert.equal(raffleState.toString(), "0");
 					assert.equal(
 						interval.toString(),
@@ -51,15 +59,17 @@ const { logParser } = require("../../utils/logParser");
 			describe("Function: `enterRaffle()`:", () => {
 				it("Reverts if not enough tokens payed.", async () => {
 					await expect(
-						contract_raffle.enterRaffle(),
+						contract_raffle_player.enterRaffle(),
 					).to.be.revertedWithCustomError(
-						contract_raffle,
+						contract_raffle_player,
 						"Raffle__NotEnoughETH",
 					);
 				});
 
 				it("Reverts if contract state is not `OPEN`.", async () => {
-					await contract_raffle.enterRaffle({ value: entranceFee });
+					await contract_raffle_player.enterRaffle({
+						value: entranceFee,
+					});
 					/**
 					 * Get the contract to CLOSED state
 					 *      Use `performUpkeep` -> Need `checkUpkeep` to be fired
@@ -71,30 +81,37 @@ const { logParser } = require("../../utils/logParser");
 					await network.provider.send("evm_mine", []);
 
 					// Pretend to be a keeper
-					await contract_raffle.performUpkeep(
+					await contract_raffle_player.performUpkeep(
 						"0x" /**The empty byte array */,
 					); // After this, the contract should be in CALCULATING state
 					await expect(
-						contract_raffle.enterRaffle({ value: entranceFee }),
+						contract_raffle_player.enterRaffle({
+							value: entranceFee,
+						}),
 					).to.be.revertedWithCustomError(
-						contract_raffle,
+						contract_raffle_player,
 						"Raffle__NotOpen",
 					);
 				});
 
 				it("Records entered player.", async () => {
 					// Entrance fee
-					await contract_raffle.enterRaffle({ value: entranceFee });
+					await contract_raffle_player.enterRaffle({
+						value: entranceFee,
+					});
 					// Currently, deployer is connected
-					const playerFromRaffle = await contract_raffle.getPlayer(0);
-					assert.equal(playerFromRaffle, deployer);
+					const playerFromRaffle =
+						await contract_raffle_player.getPlayer(0);
+					assert.equal(playerFromRaffle, player.address);
 				});
 
 				it("Emits event: `RaffleEnter`.", async () => {
 					// Similar to testing error
 					await expect(
-						contract_raffle.enterRaffle({ value: entranceFee }),
-					).to.emit(contract_raffle, "RaffleEnter");
+						contract_raffle_player.enterRaffle({
+							value: entranceFee,
+						}),
+					).to.emit(contract_raffle_player, "RaffleEnter");
 				});
 			});
 
@@ -102,7 +119,9 @@ const { logParser } = require("../../utils/logParser");
 				// Test every portion, make other portions true
 				it("Returns false if the contract state is not `OPEN`", async () => {
 					// Player entered and pool has reward
-					await contract_raffle.enterRaffle({ value: entranceFee });
+					await contract_raffle_player.enterRaffle({
+						value: entranceFee,
+					});
 					// Time passed true and state is `CALCULATING`
 					await network.provider.send("evm_increaseTime", [
 						Number(interval) + 1,
@@ -110,18 +129,23 @@ const { logParser } = require("../../utils/logParser");
 					await network.provider.send("evm_mine", []);
 
 					// Changed state
-					await contract_raffle.performUpkeep("0x");
+					await contract_raffle_player.performUpkeep("0x");
 
-					const raffleState = await contract_raffle.getRaffleState();
+					const raffleState =
+						await contract_raffle_player.getRaffleState();
 					const { upkeepNeeded } =
-						await contract_raffle.checkUpkeep.staticCall("0x");
+						await contract_raffle_player.checkUpkeep.staticCall(
+							"0x",
+						);
 					assert.equal(raffleState.toString(), "1"); // See contract comment for explanation
 					assert.equal(upkeepNeeded, false);
 				});
 
 				it("Returns false if not enough time passed", async () => {
 					// Player and pool
-					await contract_raffle.enterRaffle({ value: entranceFee });
+					await contract_raffle_player.enterRaffle({
+						value: entranceFee,
+					});
 					// Is open already
 					// Not enough time passed
 					await network.provider.send("evm_increaseTime", [
@@ -129,7 +153,9 @@ const { logParser } = require("../../utils/logParser");
 					]);
 					await network.provider.send("evm_mine", []);
 					const { upkeepNeeded } =
-						await contract_raffle.checkUpkeep.staticCall("0x");
+						await contract_raffle_player.checkUpkeep.staticCall(
+							"0x",
+						);
 					assert(!upkeepNeeded);
 				});
 
@@ -146,13 +172,17 @@ const { logParser } = require("../../utils/logParser");
 					 * we don't really need to txn, thus use `staticCall` to simulate calling and seeing the result
 					 */
 					const { upkeepNeeded } =
-						await contract_raffle.checkUpkeep.staticCall("0x");
+						await contract_raffle_player.checkUpkeep.staticCall(
+							"0x",
+						);
 					assert(!upkeepNeeded);
 				});
 
 				it("Returns true if has player and reward, enough time passed and state is `OPEN`", async () => {
 					// Player and pool
-					await contract_raffle.enterRaffle({ value: entranceFee });
+					await contract_raffle_player.enterRaffle({
+						value: entranceFee,
+					});
 					// Is open already
 					// Time passed true and state is `CALCULATING`
 					await network.provider.send("evm_increaseTime", [
@@ -160,7 +190,9 @@ const { logParser } = require("../../utils/logParser");
 					]);
 					await network.provider.send("evm_mine", []);
 					const { upkeepNeeded } =
-						await contract_raffle.checkUpkeep.staticCall("0x");
+						await contract_raffle_player.checkUpkeep.staticCall(
+							"0x",
+						);
 					assert(upkeepNeeded);
 				});
 			});
@@ -168,7 +200,9 @@ const { logParser } = require("../../utils/logParser");
 			describe("Function `performUpkeep()`:", () => {
 				it("Only runs when `checkUpkeep()` returns `true`.", async () => {
 					// Player and pool
-					await contract_raffle.enterRaffle({ value: entranceFee });
+					await contract_raffle_player.enterRaffle({
+						value: entranceFee,
+					});
 					// Is open already
 					// Time passed true and state is `CALCULATING`
 					await network.provider.send("evm_increaseTime", [
@@ -176,14 +210,18 @@ const { logParser } = require("../../utils/logParser");
 					]);
 					await network.provider.send("evm_mine", []);
 
-					const txn = await contract_raffle.performUpkeep("0x");
+					const txn = await contract_raffle_player.performUpkeep(
+						"0x",
+					);
 					assert(txn); // If txn didn't go through, this will fail
 				});
 
 				it("Reverted with `Raffle__UpkeepNotNeeded` when `checkUpkeep` returns false", async () => {
 					// Any case that is false
 					// Player and pool
-					await contract_raffle.enterRaffle({ value: entranceFee });
+					await contract_raffle_player.enterRaffle({
+						value: entranceFee,
+					});
 					// Is open already
 					// Time passed true and state is `CALCULATING`
 					await network.provider.send("evm_increaseTime", [
@@ -192,9 +230,9 @@ const { logParser } = require("../../utils/logParser");
 					await network.provider.send("evm_mine", []);
 
 					await expect(
-						contract_raffle.performUpkeep("0x"),
+						contract_raffle_player.performUpkeep("0x"),
 					).to.be.revertedWithCustomError(
-						contract_raffle,
+						contract_raffle_player,
 						"Raffle__UpkeepNotNeeded",
 						/**
 						 * Can also add the error params we expect
@@ -204,7 +242,9 @@ const { logParser } = require("../../utils/logParser");
 				});
 
 				it("Changes state to `Calculating`", async () => {
-					await contract_raffle.enterRaffle({ value: entranceFee });
+					await contract_raffle_player.enterRaffle({
+						value: entranceFee,
+					});
 					// Is open already
 					// Time passed true and state is `CALCULATING`
 					await network.provider.send("evm_increaseTime", [
@@ -212,13 +252,16 @@ const { logParser } = require("../../utils/logParser");
 					]);
 					await network.provider.send("evm_mine", []);
 
-					await contract_raffle.performUpkeep("0x");
-					const raffleState = await contract_raffle.getRaffleState();
+					await contract_raffle_player.performUpkeep("0x");
+					const raffleState =
+						await contract_raffle_player.getRaffleState();
 					assert.equal(raffleState.toString(), "1");
 				});
 
 				it("Calls the VRFCoordinator.", async () => {
-					await contract_raffle.enterRaffle({ value: entranceFee });
+					await contract_raffle_player.enterRaffle({
+						value: entranceFee,
+					});
 					// Is open already
 					// Time passed true and state is `CALCULATING`
 					await network.provider.send("evm_increaseTime", [
@@ -226,9 +269,8 @@ const { logParser } = require("../../utils/logParser");
 					]);
 					await network.provider.send("evm_mine", []);
 
-					const txnResponse = await contract_raffle.performUpkeep(
-						"0x",
-					);
+					const txnResponse =
+						await contract_raffle_player.performUpkeep("0x");
 					const txnReceipt = await txnResponse.wait(1);
 
 					/**Get request ID
@@ -250,7 +292,9 @@ const { logParser } = require("../../utils/logParser");
 			describe("Function `fulfillRandomWords()`:", () => {
 				// For this section, before we test, we defo need players in pool, so add `beforeEach`
 				beforeEach(async () => {
-					await contract_raffle.enterRaffle({ value: entranceFee });
+					await contract_raffle_player.enterRaffle({
+						value: entranceFee,
+					});
 					await network.provider.send("evm_increaseTime", [
 						Number(interval) + 10,
 					]);
@@ -274,33 +318,15 @@ const { logParser } = require("../../utils/logParser");
 						),
 					).to.be.revertedWith("nonexistent request");
 				});
-			});
 
-			/**Massive Promise test
-			 * The way this test is organized can be applied to staging test
-			 *
-			 * In this part, we will confirm:
-			 * 		Contract picks a winner, resets and sends money
-			 * What we will need in addition:
-			 * 		More than one player in pool
-			 */
-			describe("The contract performs correctly", () => {
-				beforeEach(async () => {
-					const accounts = await ethers.getSigners();
-					const additionalPlayersNum = 3;
-					const playerAccountIndex = 1; // Deployer is 0
-					for (
-						let i = playerAccountIndex;
-						i < playerAccountIndex + additionalPlayersNum;
-						i++
-					) {
-						const accountConnected_raffle =
-							await contract_raffle.connect(accounts[i]);
-						await accountConnected_raffle.enterRaffle({
-							value: entranceFee,
-						});
-					}
-				});
+				/**Massive Promise test
+				 * The way this test is organized can be applied to staging test
+				 *
+				 * In this part, we will confirm:
+				 * 		Contract picks a winner, resets and sends money
+				 * What we will need in addition:
+				 * 		More than one player in pool
+				 */
 
 				/**What we will do:
 				 * 		`performUpkeep`, (We mock being Chainlink keepers) ->
@@ -311,19 +337,73 @@ const { logParser } = require("../../utils/logParser");
 				 * 			Don't have to wait, but we need to simulate the waiting
 				 * 			Have to setup listener, and make sure the test does not finish until listener listened(Use promise)
 				 */
-				it("", async () => {
+				it("Does what we expect it to do", async () => {
+					const additionalPlayersNum = 3;
+					const playerAccountIndex = 2; // Deployer is 0
+					for (
+						let i = playerAccountIndex;
+						i < playerAccountIndex + additionalPlayersNum;
+						i++
+					) {
+						contract_raffle_player =
+							await contract_raffle.connect(accounts[i]);
+						await contract_raffle_player.enterRaffle({
+							value: entranceFee,
+						});
+					}
+
 					const startingTimeStamp =
-						await contract_raffle.getLatestTimestamp();
+						await contract_raffle_player.getLatestTimestamp();
 
 					// This will seem a bit backward going, cuz we need to set up the listener first
 					await new Promise(async (resolve, reject) => {
 						// Need all codes inside this `Promise` block, but after the `once` block
 						// Reject timeout defined in `hardhat.config.js`, if reached timeout and not resolved, this test fails
-						contract_raffle.once(
+						contract_raffle_player.once(
 							"WinnerPicked" /**Listen for `WinnerPicked` event to be fired */,
-							() => {
+							async () => {
+								console.log(
+									"********************************************",
+								);
+								console.log(
+									"*       Event(`WinnerPicked`) Fired!        *",
+								);
+								console.log(
+									"********************************************",
+								);
+
 								// Once event picked, do this
 								try {
+									const recentWinner =
+										await contract_raffle_player.getRecentWinner();
+									console.log(`Winner: ${recentWinner}`);
+									console.log(
+										`Account 0: ${accounts[0].address}`,
+									);
+									console.log(
+										`Account 1: ${accounts[1].address}`,
+									);
+									console.log(
+										`Account 2: ${accounts[2].address}`,
+									);
+									console.log(
+										`Account 3: ${accounts[3].address}`,
+									);
+									const raffleState =
+										await contract_raffle_player.getRaffleState();
+									const endingTimestamp =
+										await contract_raffle_player.getLatestTimestamp();
+
+									/**Asserts
+									 * State back to open
+									 * `s_players` be reset to 0
+									 * `s_lastTimestamp` be reset to current time
+									 */
+									const playerNum =
+										await contract_raffle_player.getNumberOfPlayers();
+									assert.equal(playerNum.toString(), "0");
+									assert.equal(raffleState.toString(), "0");
+									assert(endingTimestamp > startingTimeStamp);
 								} catch (error) {
 									reject();
 								}
@@ -332,11 +412,11 @@ const { logParser } = require("../../utils/logParser");
 						);
 
 						const txnResponse_performUpkeep =
-							await contract_raffle.performUpkeep("0x");
+							await contract_raffle_player.performUpkeep("0x");
 						const txnReceipt_performUpkeep =
 							await txnResponse_performUpkeep.wait(1);
 
-						// Get requestId
+						// Get requestId and firing the event
 						const deployment_raffle = await deployments.get(
 							"Raffle",
 						);
@@ -349,8 +429,13 @@ const { logParser } = require("../../utils/logParser");
 						const requestId =
 							parsedLogs_raffle[1]?.args[0] || BigInt(0);
 						await contract_vrfCoordinatorV2Mock.fulfillRandomWords(
+							// Once is called, should emit a `WinnerPicked` event
 							requestId,
-							address_raffle,
+							contract_raffle_player.getAddress(),
+						);
+						console.log(`\`address_raffle\`: ${address_raffle}`);
+						console.log(
+							`\`contract_raffle_player.address\`: ${await contract_raffle_player.getAddress()}`,
 						);
 					});
 				});
