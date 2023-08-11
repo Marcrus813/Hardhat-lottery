@@ -345,8 +345,9 @@ const { logParser } = require("../../utils/logParser");
 						i < playerAccountIndex + additionalPlayersNum;
 						i++
 					) {
-						contract_raffle_player =
-							await contract_raffle.connect(accounts[i]);
+						contract_raffle_player = await contract_raffle.connect(
+							accounts[i],
+						);
 						await contract_raffle_player.enterRaffle({
 							value: entranceFee,
 						});
@@ -354,6 +355,15 @@ const { logParser } = require("../../utils/logParser");
 
 					const startingTimeStamp =
 						await contract_raffle_player.getLatestTimestamp();
+					const initialBalanceMap = new Map();
+					for (let i = 0; i < accounts.length; i++) {
+						initialBalanceMap.set(
+							accounts[i].address,
+							await ethers.provider.getBalance(
+								accounts[i].address,
+							),
+						);
+					}
 
 					// This will seem a bit backward going, cuz we need to set up the listener first
 					await new Promise(async (resolve, reject) => {
@@ -362,33 +372,16 @@ const { logParser } = require("../../utils/logParser");
 						contract_raffle_player.once(
 							"WinnerPicked" /**Listen for `WinnerPicked` event to be fired */,
 							async () => {
-								console.log(
-									"********************************************",
-								);
-								console.log(
-									"*       Event(`WinnerPicked`) Fired!        *",
-								);
-								console.log(
-									"********************************************",
-								);
-
 								// Once event picked, do this
 								try {
 									const recentWinner =
 										await contract_raffle_player.getRecentWinner();
-									console.log(`Winner: ${recentWinner}`);
-									console.log(
-										`Account 0: ${accounts[0].address}`,
-									);
-									console.log(
-										`Account 1: ${accounts[1].address}`,
-									);
-									console.log(
-										`Account 2: ${accounts[2].address}`,
-									);
-									console.log(
-										`Account 3: ${accounts[3].address}`,
-									);
+									const winnerStartingBalance =
+										initialBalanceMap.get(recentWinner);
+									const winnerEndingBalance =
+										await ethers.provider.getBalance(
+											recentWinner,
+										);
 									const raffleState =
 										await contract_raffle_player.getRaffleState();
 									const endingTimestamp =
@@ -404,6 +397,17 @@ const { logParser } = require("../../utils/logParser");
 									assert.equal(playerNum.toString(), "0");
 									assert.equal(raffleState.toString(), "0");
 									assert(endingTimestamp > startingTimeStamp);
+
+									// For operating BigInt, we need to convert all that we don't already know as BigInt to BigInt to avoid exceptions
+									assert.equal(
+										winnerEndingBalance.toString(),
+										(
+											winnerStartingBalance +
+											BigInt(entranceFee) *
+												BigInt(additionalPlayersNum) +
+											BigInt(entranceFee)
+										).toString(),
+									);
 								} catch (error) {
 									reject();
 								}
@@ -432,10 +436,6 @@ const { logParser } = require("../../utils/logParser");
 							// Once is called, should emit a `WinnerPicked` event
 							requestId,
 							contract_raffle_player.getAddress(),
-						);
-						console.log(`\`address_raffle\`: ${address_raffle}`);
-						console.log(
-							`\`contract_raffle_player.address\`: ${await contract_raffle_player.getAddress()}`,
 						);
 					});
 				});

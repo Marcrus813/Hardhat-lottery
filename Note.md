@@ -148,6 +148,28 @@ Basically the same as before, `hardhat.config.js`, `helper-hardhat.config.js`, d
 -   Promising tests
     -   **Problem notes**
         -   When dealing with this, `const txnResponse_performUpkeep = await contract_raffle.performUpkeep("0x");` does not complete, changed to `contract_raffle_player.performUpkeep("0x");`(Where `contract_raffle_player` is a new instance of `contract_raffle` which is connected to a player), then it runs, and it seems all other tests are run on this `contract_raffle_player`. **_STILL NEED EXPLANATION_**
-            - Two have the same address(Naturally...)
+            -   Two have the same address(Naturally...)
         -   Always the same address returned, WHY?
-            - We are using a Mock in our local environment, we expect the winner to always be the same because the mock doesn't generate randomness. However in a testnet or mainnet, you are guaranteed to get a random winner.
+            -   We are using a Mock in our local environment, we expect the winner to always be the same because the mock doesn't generate randomness. However in a testnet or mainnet, you are guaranteed to get a random winner.
+
+---
+
+### Staging test
+
+-   Testing on test net
+    1. Get subId for chainlink VRF
+    2. Deploy our contract using the SubId
+    3. Register the contract with `Chainlink VRF` & `subId`
+        - Here we do it via web UI, but can also be done programmatically
+    4. Register the contract with Chainlink keepers
+        - Here we do it via web UI, but can also be done programmatically
+    5. Run
+        - Since it is deployed on test net, we can do stuff on etherscan (What we need to do is basically `enterRaffle`, we can also do it with interaction scripts, console or test script)
+            - Write contract -> Connect wallet -> Call functions
+        - We can monitor the activities on etherscan
+        - On etherscan, we only see `EnterRaffle` function, why?
+            - `performUpkeep` and others are considered internal txns, they are called via VRFCoordinator
+
+## Conclusion
+
+- Completion of Hardhat basics
